@@ -1,0 +1,7 @@
+.idea
+.vscode
+**/**build**/**
+cmake-build-debug
+test/lib/google-benchmark
+test/lib/gtest
+
