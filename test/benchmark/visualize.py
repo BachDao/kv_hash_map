@@ -9,7 +9,7 @@ TEST_DATA_FILE = "test_data"
 BINARY_FILE = "../../cmake-build-debug/test/kv_benchmark"
 
 
-def execute_benchmark():
+def execute_insert_test():
     pwd = os.getcwd()
     cmd = os.path.join(pwd, BINARY_FILE)
     args = "--benchmark_format=json"
@@ -76,7 +76,7 @@ def build_executable():
 
 def main():
     build_executable()
-    test_data = execute_benchmark()
+    test_data = execute_insert_test()
     result = parse_benchmark_result(test_data)
     visualize(result, False)
 
