@@ -21,4 +21,5 @@ at [HashTable](https://en.wikipedia.org/wiki/Hash_table)
 - Hash collision is resolved by keep searching for next empty slot.
 - Table is resize when load factor is exceed predefine max load factor, or when probe length is too big. <br />
   
-![image info] (resource/flat_map_insertion.png)
+![image info](https://github.com/BachDao/kv_hash_map/blob/main/resoure/flat_map_insertion.png)
+![image info](https://github.com/BachDao/kv_hash_map/blob/main/resoure/flat_map_probe_length.png)
