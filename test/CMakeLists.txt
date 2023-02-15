@@ -9,7 +9,7 @@ target_link_libraries(unit_test PRIVATE kv_hash)
 target_link_libraries(unit_test PRIVATE GTest::gtest GTest::gtest_main)
 
 file(GLOB BENCH_FILES ${CMAKE_CURRENT_SOURCE_DIR}/benchmark/*.cpp)
-add_executable(kv_benchmark ${BENCH_FILES})
+add_executable(kv_benchmark ${CMAKE_CURRENT_SOURCE_DIR}/benchmark/insert.cpp)
 target_link_libraries(kv_benchmark PRIVATE kv_hash)
 target_link_libraries(kv_benchmark PRIVATE benchmark::benchmark)
 

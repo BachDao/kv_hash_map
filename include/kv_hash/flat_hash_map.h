@@ -25,10 +25,11 @@ enum class map_entry_state : size_t {
 size_t mod(size_t a, size_t n) { return a % n; }
 
 template <typename K, typename V> struct map_entry {
+  size_t probeLen_;
   map_entry_state state_;
   std::pair<K, V> val_;
-  map_entry(const std::pair<K, V> &val)
-      : state_(map_entry_state::full), val_(val) {}
+  map_entry(const std::pair<K, V> &val, size_t probeLen)
+      : state_(map_entry_state::full), val_(val), probeLen_(probeLen) {}
 };
 
 template <typename EntryType, typename Alloc, typename Hash> class storage {
@@ -43,6 +44,7 @@ template <typename EntryType, typename Alloc, typename Hash> class storage {
 public:
   storage(size_t capacity) : capacity_(capacity) {
     ptrData_ = alloc_traits::allocate(alloc_, capacity_);
+    memset(ptrData_, 0, sizeof(EntryType) * capacity_);
   }
 
   ~storage() {
@@ -141,7 +143,7 @@ public:
 
   value_type &operator*() { return hm_.entry_at(idx_).val_; }
 
-  map_iterator &operator->() { return *this; }
+  value_type *operator->() { return *this; }
 
   map_iterator &operator++() {
     idx_ = hm_.get_next_entry_idx(idx_);
@@ -179,7 +181,7 @@ private:
 
   size_t size_ = 0;
   size_t maxProbeLen_ = 0;
-  static constexpr double maxLoadFactor_ = 0.8;
+  static constexpr double maxLoadFactor_ = 0.9;
   storage<map_entry, Alloc, Hash> storage_;
 
   void update_boundary(size_t idx) {
@@ -195,14 +197,13 @@ private:
 
   map_entry &entry_at(size_t idx) { return storage_[idx]; }
 
-  std::pair<size_t, map_entry_state> probe(size_t initialIdx, const K &key) {
+  std::tuple<size_t, map_entry_state, size_t> probe(size_t initialIdx,
+                                                    const K &key) {
     auto pred = [&](map_entry &e) {
       return e.state_ == map_entry_state::empty ||
              KeyEqual{}(key, e.val_.first);
     };
-    auto [idx, entryState, probeLen] =
-        storage_.probe(initialIdx, pred, maxProbeLen_);
-    return {idx, entryState};
+    return storage_.probe(initialIdx, pred, maxProbeLen_);
   }
 
   std::tuple<size_t, map_entry_state, size_t> find_empty_slot(size_t initialIdx,
@@ -213,15 +214,16 @@ private:
     return storage_.probe(initialIdx, pred, storage_.capacity());
   }
 
-  std::pair<size_t, bool> find_or_prepare_insert(size_t hashVal, const K &key) {
-    auto [idx, entryState] = probe(hashVal, key);
+  std::tuple<size_t, bool, size_t> find_or_prepare_insert(size_t hashVal,
+                                                          const K &key) {
+    auto [idx, entryState, probeLen] = probe(hashVal, key);
 
     // entry doesn't exist in table
     if (entryState == map_entry_state::full) {
-      return {idx, true};
+      return {idx, true, probeLen};
     }
     if (entryState == map_entry_state::empty) {
-      return {idx, false};
+      return {idx, false, probeLen};
     }
     assert(entryState == map_entry_state::invalid);
     {
@@ -230,13 +232,13 @@ private:
           find_empty_slot(hashVal + maxProbeLen_, key);
       assert(entry_at(emptyIdx).state_ == map_entry_state::empty);
       maxProbeLen_ += probeLen;
-      return {emptyIdx, false};
+      return {emptyIdx, false, maxProbeLen_};
     }
   }
 
   // construct entry from "val" at "idx"
-  iterator emplace(size_t idx, const value_type &val) {
-    storage_.emplace(idx, val);
+  iterator emplace(size_t idx, const value_type &val, size_t probeLen) {
+    storage_.emplace(idx, map_entry{val, probeLen});
     size_++;
     update_boundary(idx);
     return iterator_at(idx);
@@ -270,11 +272,21 @@ public:
   std::pair<iterator, bool> insert(const value_type &val) {
     resize_if_necessary();
     auto hashVal = Hash{}(val.first);
-    auto [idx, exist] = find_or_prepare_insert(hashVal, val.first);
+    auto [idx, exist, probeLen] = find_or_prepare_insert(hashVal, val.first);
     if (exist) {
       return {iterator_at(idx), false};
     }
-    return {emplace(idx, val), true};
+    return {emplace(idx, val, probeLen), true};
+  }
+  std::vector<size_t> collect_probe_len() {
+    std::vector<size_t> retVal;
+    for (int i = 0; i < storage_.capacity(); ++i) {
+      auto &e = storage_[i];
+      if (e.state_ == map_entry_state::full) {
+        retVal.push_back(e.probeLen_);
+      }
+    }
+    return retVal;
   }
 
   iterator find(const K &key) {

@@ -2,6 +2,7 @@ import json
 import subprocess
 from collections import defaultdict
 
+import numpy as np
 import matplotlib.pyplot as plt
 import os
 
@@ -67,11 +68,25 @@ def visualize(plot_data, show_data_val):
     plt.show()
 
 
+def plot_histogram(data):
+    bins = np.linspace(1, 350)
+    plt.hist(data, range=(50, 300), histtype='bar', ec='black', density=False)
+    plt.xlabel("Probe length")
+    plt.ylabel("Freq")
+    plt.title("Insertion")
+    plt.show()
+
+
 def build_executable():
     cmd_str = "/Applications/CLion.app/Contents/bin/cmake/mac/bin/cmake --build " \
               "/Users/bachdao/dev/kv_hash/cmake-build-debug --target kv_benchmark -j 8"
     cmd = cmd_str.split(" ")
     subprocess.run(cmd)
+
+
+def parse_probe_len_data(probe_info):
+    str_info = probe_info.decode('utf-8').split(' ')
+    return [int(x) for x in str_info if len(x) > 0]
 
 
 def main():
